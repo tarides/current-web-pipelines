@@ -38,6 +38,8 @@ module type Renderer = sig
     val render_inline : t -> _ inline
 
     val render : t -> _ block
+
+    val creation_date : t -> float
   end
 
   val render_index : unit -> _ block
@@ -63,9 +65,11 @@ module Make (R : Renderer) = struct
   let update_state (state : t) (new_state : pipeline_state Current.t) =
     let open Current.Syntax in
     let+ new_state = new_state in
+    let creation_date = R.Pipeline.creation_date new_state.metadata in
     let new_state =
-      State.map Run_time.map_node Run_time.map_stage Run_time.map_stage
-        new_state
+      State.map
+        (Run_time.map_node ~creation_date)
+        Run_time.map_stage Run_time.map_stage new_state
     in
     state :=
       StringMap.add
@@ -118,9 +122,17 @@ module Make (R : Renderer) = struct
   let show_pipeline ~(state : t) pipeline_id =
     let pipeline = StringMap.find pipeline_id !state in
     let metadata, _ = pipeline.metadata in
+    let date = R.Pipeline.creation_date metadata |> Unix.gmtime in
+    let datestr =
+      Fmt.str "%02d/%02d/%4d %02d:%02d" date.tm_mday date.tm_mon
+        (1900 + date.tm_year) date.tm_hour date.tm_min
+    in
     let open Tyxml_html in
     [
       h1 [ txt "Pipeline "; R.Pipeline.render_inline metadata ];
+      i [ txt datestr ];
+      br ();
+      br ();
       R.Pipeline.render metadata;
       h2 [ txt "Stages:" ];
       ul
