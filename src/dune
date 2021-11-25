@@ -1,0 +1,5 @@
+(library
+ (name current_web_pipelines)
+ (public_name current-web-pipelines)
+ (libraries current routes current_web)
+ )
