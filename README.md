@@ -1,5 +1,5 @@
-# ocurrent-webci
+#  current-web-pipelines
 
-`ocurrent-webci` is a wrapped on top of `ocurrent` pipelines that provide tools
+` current-web-pipelines` is a wrapper on top of `ocurrent` pipelines that provide tools
 to build complex interfaces, for example representing multi-stage pipelines. 
 
