@@ -39,7 +39,6 @@ module type Renderer = sig
 
     val render : t -> _ block
 
-    val creation_date : t -> float
   end
 
   val render_index : unit -> _ block

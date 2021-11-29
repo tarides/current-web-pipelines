@@ -38,8 +38,6 @@ module type Renderer = sig
     val render_inline : t -> _ inline
 
     val render : t -> _ block
-
-    val creation_date : t -> float
   end
 
   val render_index : unit -> _ block
@@ -51,11 +49,17 @@ module Make (R : Renderer) = struct
   type pipeline_state =
     (R.Output.t, R.Node.t, R.Stage.t, R.Pipeline.t) State.pipeline
 
+  type pipeline_metadata = {
+    user_meta : R.Pipeline.t;
+    run_time : Run_time.t;
+    creation_date : float;
+  }
+
   type pipeline_state_internal =
     ( R.Output.t,
       R.Node.t * Run_time.t,
       R.Stage.t * Run_time.t,
-      R.Pipeline.t * Run_time.t )
+      pipeline_metadata )
     State.pipeline
 
   type t = pipeline_state_internal StringMap.t ref
@@ -65,16 +69,23 @@ module Make (R : Renderer) = struct
   let update_state (state : t) (new_state : pipeline_state Current.t) =
     let open Current.Syntax in
     let+ new_state = new_state in
-    let creation_date = R.Pipeline.creation_date new_state.metadata in
+
+    let id = new_state.metadata |> R.Pipeline.id in
+
+    let creation_date =
+      match StringMap.find_opt id !state with
+      | None -> Unix.gettimeofday ()
+      | Some { metadata = { creation_date; _ } } -> creation_date
+    in
+
     let new_state =
       State.map
         (Run_time.map_node ~creation_date)
         Run_time.map_stage Run_time.map_stage new_state
+      |> fun ({ metadata = user_meta, run_time; _ } as v) ->
+      { v with metadata = { user_meta; run_time; creation_date } }
     in
-    state :=
-      StringMap.add
-        (new_state.metadata |> fst |> R.Pipeline.id)
-        new_state !state
+    state := StringMap.add id new_state !state
   (* RENDERING *)
 
   let emoji_of_status =
@@ -95,15 +106,15 @@ module Make (R : Renderer) = struct
   let list_pipelines ~(state : t) =
     let open Tyxml_html in
     let show_pipeline (pipeline : pipeline_state_internal) =
-      let metadata, run_time = pipeline.metadata in
-      let id = R.Pipeline.id metadata in
+      let { user_meta; run_time; _ } = pipeline.metadata in
+      let id = R.Pipeline.id user_meta in
       [
         h2
           [
             emoji_of_status (State.pipeline_status pipeline);
             a
               ~a:[ a_href ("/pipelines/" ^ id) ]
-              [ R.Pipeline.render_inline metadata ];
+              [ R.Pipeline.render_inline user_meta ];
             i [ Run_time.to_elem run_time ];
           ];
       ]
@@ -121,19 +132,19 @@ module Make (R : Renderer) = struct
 
   let show_pipeline ~(state : t) pipeline_id =
     let pipeline = StringMap.find pipeline_id !state in
-    let metadata, _ = pipeline.metadata in
-    let date = R.Pipeline.creation_date metadata |> Unix.gmtime in
+    let { user_meta; creation_date; _ } = pipeline.metadata in
+    let date = Unix.gmtime creation_date in
     let datestr =
       Fmt.str "%02d/%02d/%4d %02d:%02d" date.tm_mday date.tm_mon
         (1900 + date.tm_year) date.tm_hour date.tm_min
     in
     let open Tyxml_html in
     [
-      h1 [ txt "Pipeline "; R.Pipeline.render_inline metadata ];
+      h1 [ txt "Pipeline "; R.Pipeline.render_inline user_meta ];
       i [ txt datestr ];
       br ();
       br ();
-      R.Pipeline.render metadata;
+      R.Pipeline.render user_meta;
       h2 [ txt "Stages:" ];
       ul
         (List.map
@@ -199,6 +210,7 @@ module Make (R : Renderer) = struct
 
   let show_pipeline_task ~(state : t) pipeline_id stage_id =
     let pipeline = StringMap.find pipeline_id !state in
+    let { user_meta; _ } = pipeline.metadata in
     let stage =
       List.find
         (fun (t : _ State.stage) -> R.Stage.id (fst t.metadata) = stage_id)
@@ -216,7 +228,7 @@ module Make (R : Renderer) = struct
           emoji_of_status (State.pipeline_status pipeline);
           a
             ~a:[ a_href ("/pipelines/" ^ pipeline_id) ]
-            [ R.Pipeline.render_inline (fst pipeline.metadata) ];
+            [ R.Pipeline.render_inline user_meta ];
         ];
       h2
         [

@@ -62,7 +62,7 @@ let single_c node_metadata current =
 let single node_metadata current =
   let open Current.Syntax in
   let state =
-    let+ state = Current.state ~hidden:true current
+    let+ state = Current.state ~hidden:false current
     and+ metadata = Current.Analysis.metadata current in
     let job_result = status_of_state_and_metadata state metadata in
     State.job_tree_item node_metadata ?metadata job_result
