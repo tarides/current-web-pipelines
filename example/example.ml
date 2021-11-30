@@ -66,6 +66,17 @@ module Website_render = struct
       | `Git commit ->
           let h = Git.Commit.id commit |> Git.Commit_id.hash in
           span [ txt "git commit is "; i [ txt (String.sub h 0 7) ] ]
+
+    let marshal = function
+      | `No_data -> "N"
+      | `Git commit -> "G" ^ Git.Commit.marshal commit
+
+    let unmarshal s =
+      match s.[0] with
+      | 'N' -> `No_data
+      | 'G' ->
+          `Git (Git.Commit.unmarshal (String.sub s 1 (String.length s - 1)))
+      | _ -> failwith "type error"
   end
 
   let sanitize = String.map (function ' ' -> '-' | c -> c)
@@ -76,6 +87,10 @@ module Website_render = struct
     let render_inline name = txt name
 
     let map_status _ = Fun.id
+
+    let marshal = Fun.id
+
+    let unmarshal = Fun.id
   end
 
   module Stage = struct
@@ -86,6 +101,10 @@ module Website_render = struct
     let render_inline name = txt name
 
     let render _ = txt ""
+
+    let marshal = Fun.id
+
+    let unmarshal = Fun.id
   end
 
   module Pipeline = struct
@@ -101,6 +120,10 @@ module Website_render = struct
     let render_inline (t : t) = txt t
 
     let render _ = txt ""
+
+    let marshal = Fun.id
+
+    let unmarshal = Fun.id
   end
 
   let render_index () = div [ h1 [ txt "This is a CI" ] ]

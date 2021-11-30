@@ -86,3 +86,27 @@ val map :
     'new_pipeline_metadata )
   pipeline
 (** [map fn_leaf fn_node fn_stage fn_pipeline pipeline] transforms the metadata at every stage. Each function takes the new metadata of the lower stages and the current metadata and should return the new metadata. *)
+
+val marshal :
+  ('output -> string) ->
+  ('new_node_metadata -> string) ->
+  ('new_stage_metadata -> string) ->
+  ('new_pipeline_metadata -> string) ->
+  ( 'output,
+    'new_node_metadata,
+    'new_stage_metadata,
+    'new_pipeline_metadata )
+  pipeline ->
+  string
+
+val unmarshal :
+  (string -> 'output) ->
+  (string -> 'new_node_metadata) ->
+  (string -> 'new_stage_metadata) ->
+  (string -> 'new_pipeline_metadata) ->
+  string ->
+  ( 'output,
+    'new_node_metadata,
+    'new_stage_metadata,
+    'new_pipeline_metadata )
+  pipeline

@@ -10,6 +10,10 @@ module type Renderer = sig
     type t
 
     val render_inline : t -> _ block
+
+    val marshal : t -> string
+
+    val unmarshal : string -> t
   end
 
   module Node : sig
@@ -18,6 +22,10 @@ module type Renderer = sig
     val render_inline : t -> _ inline
 
     val map_status : t -> 'a State.job_result -> 'a State.job_result
+
+    val marshal : t -> string
+
+    val unmarshal : string -> t
   end
 
   module Stage : sig
@@ -28,6 +36,10 @@ module type Renderer = sig
     val render_inline : t -> _ inline
 
     val render : t -> _ block
+
+    val marshal : t -> string
+
+    val unmarshal : string -> t
   end
 
   module Pipeline : sig
@@ -38,12 +50,88 @@ module type Renderer = sig
     val render_inline : t -> _ inline
 
     val render : t -> _ block
+
+    val marshal : t -> string
+
+    val unmarshal : string -> t
   end
 
   val render_index : unit -> _ block
 end
 
 module StringMap = Map.Make (String)
+
+module Db = struct
+  type t = {
+    db : Sqlite3.db;
+    update_pipeline : Sqlite3.stmt;
+    get_pipelines : Sqlite3.stmt;
+  }
+
+  let or_fail label x =
+    match x with
+    | Sqlite3.Rc.OK -> ()
+    | err ->
+        Fmt.failwith "Sqlite3 %s error: %s" label (Sqlite3.Rc.to_string err)
+
+  type entry = {
+    pipeline_source : string;
+    pipeline_id : string;
+    pipeline_content : string;
+    creation_date : int64;
+  }
+
+  let db =
+    lazy
+      (let db = Lazy.force Current.Db.v in
+       Current_cache.Db.init ();
+       Sqlite3.exec db
+         {|
+CREATE TABLE IF NOT EXISTS current_web_pipelines_index (
+  pipeline_source   TEXT NOT NULL,
+  pipeline_id       TEXT NOT NULL,
+  pipeline_content  BLOB NOT NULL,
+  creation_date     INTEGER NOT NULL,
+  PRIMARY KEY (pipeline_source, pipeline_id)
+)|}
+       |> or_fail "create table";
+       let update_pipeline =
+         Sqlite3.prepare db
+           "INSERT OR REPLACE INTO current_web_pipelines_index \
+            (pipeline_source, pipeline_id, pipeline_content, creation_date) \
+            VALUES (?, ?, ?, ?)"
+       in
+       let get_pipelines =
+         Sqlite3.prepare db
+           "SELECT pipeline_source, pipeline_id, pipeline_content, \
+            creation_date FROM current_web_pipelines_index"
+       in
+       { db; update_pipeline; get_pipelines })
+
+  let get_pipelines t =
+    Current.Db.query t.get_pipelines []
+    |> List.map @@ function
+       | Sqlite3.Data.
+           [
+             TEXT pipeline_source;
+             TEXT pipeline_id;
+             BLOB pipeline_content;
+             INT creation_date;
+           ] ->
+           { pipeline_source; pipeline_id; pipeline_content; creation_date }
+       | row ->
+           Fmt.failwith "get_pipelines: invalid row %a" Current.Db.dump_row row
+
+  let update_pipeline t v =
+    Current.Db.exec t.update_pipeline
+      Sqlite3.Data.
+        [
+          TEXT v.pipeline_source;
+          TEXT v.pipeline_id;
+          BLOB v.pipeline_content;
+          INT v.creation_date;
+        ]
+end
 
 module Make (R : Renderer) = struct
   type pipeline_state =
@@ -64,7 +152,35 @@ module Make (R : Renderer) = struct
 
   type t = pipeline_state_internal StringMap.t ref
 
-  let make () = ref StringMap.empty
+  let unmarshal =
+    State.unmarshal R.Output.unmarshal R.Node.unmarshal R.Stage.unmarshal
+      R.Pipeline.unmarshal
+
+  let marshal =
+    State.marshal R.Output.marshal R.Node.marshal R.Stage.marshal
+      R.Pipeline.marshal
+
+  let compute_run_time ~creation_date state =
+    state
+    |> State.map
+         (Run_time.map_node ~creation_date)
+         Run_time.map_stage Run_time.map_stage
+    |> fun ({ metadata = user_meta, run_time; _ } as v) ->
+    { v with metadata = { user_meta; run_time; creation_date } }
+
+  let make () : t =
+    let db = Lazy.force Db.db in
+    let init_state =
+      Db.get_pipelines db |> List.to_seq
+      |> Seq.map (fun (t : Db.entry) ->
+             let creation_date = Int64.to_float t.creation_date in
+             let state =
+               unmarshal t.pipeline_content |> compute_run_time ~creation_date
+             in
+             (t.pipeline_id, state))
+      |> StringMap.of_seq
+    in
+    ref init_state
 
   let update_state (state : t) (new_state : pipeline_state Current.t) =
     let open Current.Syntax in
@@ -78,6 +194,16 @@ module Make (R : Renderer) = struct
       | Some { metadata = { creation_date; _ }; _ } -> creation_date
     in
 
+    let () =
+      let db = Lazy.force Db.db in
+      Db.update_pipeline db
+        {
+          pipeline_source = "";
+          pipeline_id = id;
+          pipeline_content = marshal new_state;
+          creation_date = Int64.of_float creation_date;
+        }
+    in
     let new_state =
       State.map
         (Run_time.map_node ~creation_date)
