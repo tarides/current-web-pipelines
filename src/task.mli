@@ -1,5 +1,6 @@
 type ('current, 'state) t
-(** A pipeline with current 'current and metadata 'state. *)
+(** A pipeline with current 'current and metadata 'state.
+ the current can be blocking, but the state shouldn't.  *)
 
 type 'state simple = (unit, 'state) t
 
@@ -23,6 +24,8 @@ val list_iter :
   (unit, 'state list) t
 
 val all : (unit, 'state) t list -> (unit, 'state list) t
+
+val list_seq : ('current, 'state) t list -> ('current list, 'state list) t
 
 val map_state :
   ('state -> 'next_state) -> ('current, 'state) t -> ('current, 'next_state) t

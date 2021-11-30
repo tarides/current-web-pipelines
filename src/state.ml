@@ -32,20 +32,24 @@ and ('output, 'node_metadata) job_tree = {
   metadata : 'node_metadata;
 }
 
+let job_tree_group metadata jobs = { metadata; node = Group jobs }
+
+let job_tree_item node_metadata ?metadata result =
+  { metadata = node_metadata; node = Item { result; metadata } }
+
 type ('output, 'node_metadata, 'stage_metadata) stage = {
   jobs : ('output, 'node_metadata) job_tree list;
   metadata : 'stage_metadata;
 }
+
+let stage metadata jobs = { metadata; jobs }
 
 type ('output, 'node_metadata, 'stage_metadata, 'pipeline_metadata) pipeline = {
   stages : ('output, 'node_metadata, 'stage_metadata) stage list;
   metadata : 'pipeline_metadata;
 }
 
-let job_tree_group metadata jobs = { metadata; node = Group jobs }
-
-let job_tree_item node_metadata ?metadata result =
-  { metadata = node_metadata; node = Item { result; metadata } }
+let pipeline metadata stages = { metadata; stages }
 
 let status_of_list l =
   List.fold_left

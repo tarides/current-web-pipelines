@@ -1,0 +1,3 @@
+(executable
+ (name example)
+ (libraries current-web-pipelines current_git current.fs fmt.tty))

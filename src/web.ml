@@ -9,7 +9,7 @@ module type Renderer = sig
   module Output : sig
     type t
 
-    val render_inline : t -> [> Html_types.div_content ] Tyxml_html.elt
+    val render_inline : t -> _ block
   end
 
   module Node : sig
@@ -75,7 +75,7 @@ module Make (R : Renderer) = struct
     let creation_date =
       match StringMap.find_opt id !state with
       | None -> Unix.gettimeofday ()
-      | Some { metadata = { creation_date; _ } } -> creation_date
+      | Some { metadata = { creation_date; _ }; _ } -> creation_date
     in
 
     let new_state =

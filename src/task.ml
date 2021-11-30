@@ -34,6 +34,11 @@ let all tasks =
   let state = List.map (fun t -> t.state) tasks |> Current.list_seq in
   { current; state }
 
+let list_seq tasks =
+  let current = List.map (fun t -> t.current) tasks |> Current.list_seq in
+  let state = List.map (fun t -> t.state) tasks |> Current.list_seq in
+  { current; state }
+
 let map_current fn t = { t with current = Current.map fn t.current }
 
 let map_state fn t = { t with state = Current.map fn t.state }
