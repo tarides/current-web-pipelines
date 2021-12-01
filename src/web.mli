@@ -43,9 +43,29 @@ module type Renderer = sig
   end
 
   module Pipeline : sig
+    module Group : sig
+      type t
+
+      val to_string : t -> string
+
+      val id : t -> string
+    end
+
+    module Source : sig
+      type t
+
+      val to_string : t -> string
+
+      val id : t -> string
+
+      val group : t -> Group.t
+    end
+
     type t
 
     val id : t -> string
+
+    val source : t -> Source.t
 
     val render_inline : t -> _ inline
 
