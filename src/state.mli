@@ -64,13 +64,22 @@ val pipeline :
   ('output, 'node_metadata, 'stage_metadata) stage list ->
   ('output, 'node_metadata, 'stage_metadata, 'pipeline_metadata) pipeline
 
-val job_tree_status : ('output, _) job_tree -> 'output job_result
+val job_tree_status :
+  node_map_status:('node_metadata -> 'output job_result -> 'output job_result) ->
+  ('output, 'node_metadata) job_tree ->
+  'output job_result
 (** Aggregated tree status *)
 
-val stage_status : ('output, _, _) stage -> 'output job_result
+val stage_status :
+  node_map_status:('node_metadata -> 'output job_result -> 'output job_result) ->
+  ('output, 'node_metadata, _) stage ->
+  'output job_result
 (** Aggregated stage status *)
 
-val pipeline_status : ('output, _, _, _) pipeline -> 'output job_result
+val pipeline_status :
+  node_map_status:('node_metadata -> 'output job_result -> 'output job_result) ->
+  ('output, 'node_metadata, _, _) pipeline ->
+  'output job_result
 (** Aggregated pipeline status  *)
 
 val map :

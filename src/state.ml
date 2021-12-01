@@ -57,16 +57,23 @@ let status_of_list l =
     (Error (`Skipped "no task to do"))
     l
 
-let rec job_tree_status job_tree =
-  match job_tree.node with
-  | Item { result; _ } -> result
-  | Group nodes -> nodes |> List.rev_map job_tree_status |> status_of_list
+let rec job_tree_status ~node_map_status { node; metadata } =
+  match node with
+  | Item { result; _ } -> node_map_status metadata result
+  | Group nodes ->
+      nodes
+      |> List.rev_map (job_tree_status ~node_map_status)
+      |> status_of_list |> node_map_status metadata
 
-let stage_status stage =
-  stage.jobs |> List.rev_map job_tree_status |> status_of_list
+let stage_status ~node_map_status stage =
+  stage.jobs
+  |> List.rev_map (job_tree_status ~node_map_status)
+  |> status_of_list
 
-let pipeline_status pipeline =
-  pipeline.stages |> List.rev_map stage_status |> status_of_list
+let pipeline_status ~node_map_status pipeline =
+  pipeline.stages
+  |> List.rev_map (stage_status ~node_map_status)
+  |> status_of_list
 
 let node_metadata { metadata; node = _ } = metadata
 

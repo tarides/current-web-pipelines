@@ -328,6 +328,8 @@ module Make (R : Renderer) = struct
 
   (* LIST PIPELINES *)
 
+  let node_map_status (node_meta, _) = R.Node.map_status node_meta
+
   let list_pipelines ~(state : t) =
     let open Tyxml_html in
     let show_pipeline (pipeline : pipeline_state_internal) =
@@ -339,7 +341,7 @@ module Make (R : Renderer) = struct
         h4
           [
             txt (R.Pipeline.Source.to_string source ^ ": ");
-            emoji_of_status (State.pipeline_status pipeline);
+            emoji_of_status (State.pipeline_status ~node_map_status pipeline);
             a
               ~a:[ a_href (Fmt.str "/pipelines/%s/%s" source_id id) ]
               [ R.Pipeline.render_inline user_meta ];
@@ -411,7 +413,7 @@ module Make (R : Renderer) = struct
              let metadata, run_time = stage.metadata in
              li
                [
-                 emoji_of_status (State.stage_status stage);
+                 emoji_of_status (State.stage_status ~node_map_status stage);
                  a
                    ~a:
                      [
@@ -448,7 +450,8 @@ module Make (R : Renderer) = struct
                li
                  [
                    maybe_b [ i [ txt (datestr date ^ "   ") ] ];
-                   emoji_of_status (State.pipeline_status pipeline);
+                   emoji_of_status
+                     (State.pipeline_status ~node_map_status pipeline);
                    a
                      ~a:[ a_href (Fmt.str "/pipelines/%s/%s" source_id id) ]
                      [ R.Pipeline.render_inline user_meta ];
@@ -461,7 +464,7 @@ module Make (R : Renderer) = struct
   let render_result v = Result.map R.Output.render_inline v |> Result.to_list
 
   let rec get_job_tree ~uri_base (job_tree : _ State.job_tree) =
-    let status = State.job_tree_status job_tree in
+    let status = State.job_tree_status ~node_map_status job_tree in
     let emoji = emoji_of_status status in
     let metadata, run_time = job_tree.metadata in
     let description = R.Node.render_inline metadata in
@@ -518,7 +521,7 @@ module Make (R : Renderer) = struct
     [
       h1
         [
-          emoji_of_status (State.pipeline_status pipeline);
+          emoji_of_status (State.pipeline_status ~node_map_status pipeline);
           a
             ~a:
               [
@@ -529,7 +532,7 @@ module Make (R : Renderer) = struct
         ];
       h2
         [
-          emoji_of_status (State.stage_status stage);
+          emoji_of_status (State.stage_status ~node_map_status stage);
           R.Stage.render_inline (fst stage.metadata);
         ];
       h3 [ txt "Job tree" ];
