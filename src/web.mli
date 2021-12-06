@@ -92,4 +92,6 @@ module Make (R : Renderer) : sig
   val routes : t -> Current_web.Resource.t Routes.route list
 
   val pipeline_page_url : R.Pipeline.t -> string
+
+  val pipeline_stage_url : R.Pipeline.t -> R.Stage.t -> string
 end

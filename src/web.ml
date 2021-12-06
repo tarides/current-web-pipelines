@@ -584,6 +584,11 @@ module Make (R : Renderer) = struct
       R.Pipeline.(source data |> Source.id)
       (R.Pipeline.id data)
 
+  let pipeline_stage_url (data : R.Pipeline.t) (stage : R.Stage.t) =
+    Fmt.str "/pipelines/%s/%s/%s"
+      R.Pipeline.(source data |> Source.id)
+      (R.Pipeline.id data) (R.Stage.id stage)
+
   (* ROUTING *)
   let internal_routes ~state =
     Routes.
