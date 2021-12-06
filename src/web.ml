@@ -579,6 +579,11 @@ module Make (R : Renderer) = struct
         ];
     ]
 
+  let pipeline_page_url (data : R.Pipeline.t) =
+    Fmt.str "/pipelines/%s/%s"
+      R.Pipeline.(source data |> Source.id)
+      (R.Pipeline.id data)
+
   (* ROUTING *)
   let internal_routes ~state =
     Routes.
