@@ -387,7 +387,7 @@ module Make (R : Renderer) = struct
     let { user_meta; creation_date; _ } = pipeline.metadata in
     let date = Unix.gmtime creation_date in
     let datestr (date : Unix.tm) =
-      Fmt.str "%02d/%02d/%4d %02d:%02d" date.tm_mday date.tm_mon
+      Fmt.str "%02d/%02d/%4d %02d:%02d" date.tm_mday (1 + date.tm_mon)
         (1900 + date.tm_year) date.tm_hour date.tm_min
     in
     let open Tyxml_html in
