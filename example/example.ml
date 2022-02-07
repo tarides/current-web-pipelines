@@ -23,7 +23,6 @@ module Metadata = struct
 
     module Source = struct
       type src = Pull_request of int | Branch of string
-
       type t = { src : src; group : Group.t }
     end
 
@@ -56,7 +55,8 @@ module Pipeline = struct
     |> Task.map_state (State.job_tree_group "ocurrent projects")
 
   let stage_clone () =
-    [ mirage (); ocurrent () ] |> Task.all
+    [ mirage (); ocurrent () ]
+    |> Task.all
     |> Task.map_state (State.stage Metadata.Stage.Build)
 
   let stage_write () =
@@ -110,11 +110,8 @@ module Website_render = struct
     include Metadata.Node
 
     let render_inline name = txt name
-
     let map_status _ = Fun.id
-
     let marshal = Fun.id
-
     let unmarshal = Fun.id
   end
 
@@ -122,11 +119,8 @@ module Website_render = struct
     include Metadata.Stage
 
     let id = function Build -> "build" | Test -> "test" | Deploy -> "deploy"
-
     let render_inline t = txt (String.capitalize_ascii (id t))
-
     let render _ = txt ""
-
     let marshal = id
 
     let unmarshal = function
@@ -166,7 +160,6 @@ module Website_render = struct
     end
 
     let id (t : t) = t.run
-
     let source t = t.source
 
     let branch_name ref =
@@ -175,11 +168,8 @@ module Website_render = struct
       | _ -> "failure"
 
     let render_inline (t : t) = txt t.run
-
     let render _ = txt ""
-
     let marshal v = Marshal.to_string v []
-
     let unmarshal v = Marshal.from_string v 0
   end
 
@@ -265,8 +255,7 @@ let main config mode =
        [
          Current.Engine.thread engine;
          (* The main thread evaluating the pipeline. *)
-         Current_web.run ~mode site;
-         (* Optional: provides a web UI *)
+         Current_web.run ~mode site (* Optional: provides a web UI *);
        ])
 
 open Cmdliner

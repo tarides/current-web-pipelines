@@ -10,9 +10,7 @@ module type Renderer = sig
     type t
 
     val render_inline : t -> [> Html_types.div_content ] Tyxml_html.elt
-
     val marshal : t -> string
-
     val unmarshal : string -> t
   end
 
@@ -20,11 +18,8 @@ module type Renderer = sig
     type t
 
     val render_inline : t -> _ inline
-
     val map_status : t -> 'a State.job_result -> 'a State.job_result
-
     val marshal : t -> string
-
     val unmarshal : string -> t
   end
 
@@ -32,13 +27,9 @@ module type Renderer = sig
     type t
 
     val id : t -> string
-
     val render_inline : t -> _ inline
-
     val render : t -> _ block
-
     val marshal : t -> string
-
     val unmarshal : string -> t
   end
 
@@ -47,7 +38,6 @@ module type Renderer = sig
       type t
 
       val to_string : t -> string
-
       val id : t -> string
     end
 
@@ -55,24 +45,17 @@ module type Renderer = sig
       type t
 
       val to_string : t -> string
-
       val id : t -> string
-
       val group : t -> Group.t
     end
 
     type t
 
     val id : t -> string
-
     val source : t -> Source.t
-
     val render_inline : t -> _ inline
-
     val render : t -> _ block
-
     val marshal : t -> string
-
     val unmarshal : string -> t
   end
 
@@ -86,12 +69,8 @@ module Make (R : Renderer) : sig
     (R.Output.t, R.Node.t, R.Stage.t, R.Pipeline.t) State.pipeline
 
   val make : unit -> t
-
   val update_state : t -> pipeline_state Current.t -> unit Current.t
-
   val routes : t -> Current_web.Resource.t Routes.route list
-
   val pipeline_page_url : R.Pipeline.t -> string
-
   val pipeline_stage_url : R.Pipeline.t -> R.Stage.t -> string
 end

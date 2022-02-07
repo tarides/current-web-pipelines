@@ -10,9 +10,7 @@ module type Renderer = sig
     type t
 
     val render_inline : t -> _ block
-
     val marshal : t -> string
-
     val unmarshal : string -> t
   end
 
@@ -20,11 +18,8 @@ module type Renderer = sig
     type t
 
     val render_inline : t -> _ inline
-
     val map_status : t -> 'a State.job_result -> 'a State.job_result
-
     val marshal : t -> string
-
     val unmarshal : string -> t
   end
 
@@ -32,13 +27,9 @@ module type Renderer = sig
     type t
 
     val id : t -> string
-
     val render_inline : t -> _ inline
-
     val render : t -> _ block
-
     val marshal : t -> string
-
     val unmarshal : string -> t
   end
 
@@ -47,7 +38,6 @@ module type Renderer = sig
       type t
 
       val to_string : t -> string
-
       val id : t -> string
     end
 
@@ -55,24 +45,17 @@ module type Renderer = sig
       type t
 
       val to_string : t -> string
-
       val id : t -> string
-
       val group : t -> Group.t
     end
 
     type t
 
     val id : t -> string
-
     val source : t -> Source.t
-
     val render_inline : t -> _ inline
-
     val render : t -> _ block
-
     val marshal : t -> string
-
     val unmarshal : string -> t
   end
 
@@ -568,7 +551,8 @@ module Make (R : Renderer) = struct
         ~a:[ a_style "display: flex;" ]
         [
           div ~a:[ a_style "width: 50%" ] pipeline_tasks;
-          div ~a:[ a_style "width: 50%" ]
+          div
+            ~a:[ a_style "width: 50%" ]
             [
               h2 [ txt "Job log" ];
               a
@@ -602,7 +586,6 @@ module Make (R : Renderer) = struct
   let handle state wildcard_path =
     object
       inherit Current_web.Resource.t
-
       method! nav_link = Some "Pipelines"
 
       method! private get context =
@@ -619,8 +602,8 @@ module Make (R : Renderer) = struct
     Routes.
       [
         (s "pipelines" /? nil) @--> handle t (Parts.of_parts "");
-        (s "pipelines" /? wildcard) @--> handle t;
-        (* TODO: (s "artifacts" /? wildcard) @--> handle_artifacts;*)
+        (s "pipelines" /? wildcard) @--> handle t
+        (* TODO: (s "artifacts" /? wildcard) @--> handle_artifacts;*);
       ]
     @ R.extra_routes
 end
