@@ -17,6 +17,12 @@
  (description "")
  (depends
   (ocaml
-   (>= 4.08.0))
+   (>= 4.09))
   (current
-   (>= 0.3))))
+   (>= 0.5))
+  (current_web
+   (>= 0.5))
+  (current_git
+   (>= 0.5))
+  fmt
+  routes))
