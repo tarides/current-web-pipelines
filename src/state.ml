@@ -76,7 +76,6 @@ let pipeline_status ~node_map_status pipeline =
   |> status_of_list
 
 let node_metadata { metadata; node = _ } = metadata
-
 let stage_metadata { metadata; jobs = _ } = metadata
 
 let map fn_node fn_stage fn_pipeline { stages; metadata } =

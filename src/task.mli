@@ -24,7 +24,6 @@ val list_iter :
   (unit, 'state list) t
 
 val all : (unit, 'state) t list -> (unit, 'state list) t
-
 val list_seq : ('current, 'state) t list -> ('current list, 'state list) t
 
 val map_state :
