@@ -34,6 +34,11 @@ val map_current :
   ('current, 'state) t ->
   ('next_current, 'state) t
 
+val apply_current :
+  ('current Current.t -> 'next_current Current.t) ->
+  ('current, 'state) t ->
+  ('next_current, 'state) t
+
 (** Specialized constructors *)
 
 val single :

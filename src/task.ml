@@ -39,6 +39,7 @@ let list_seq tasks =
 
 let map_current fn t = { t with current = Current.map fn t.current }
 let map_state fn t = { t with state = Current.map fn t.state }
+let apply_current fn t = { t with current = fn t.current }
 
 let status_of_state_and_metadata state metadata =
   match (state, metadata) with
