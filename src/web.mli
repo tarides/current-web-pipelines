@@ -47,6 +47,7 @@ module type Renderer = sig
       val to_string : t -> string
       val id : t -> string
       val group : t -> Group.t
+      val compare : t -> t -> int
     end
 
     type t

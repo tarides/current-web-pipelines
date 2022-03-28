@@ -47,6 +47,7 @@ module type Renderer = sig
       val to_string : t -> string
       val id : t -> string
       val group : t -> Group.t
+      val compare : t -> t -> int
     end
 
     type t
@@ -151,18 +152,14 @@ module Make (R : Renderer) = struct
     type t = R.Pipeline.Group.t
 
     let compare a b =
-      String.compare
-        (R.Pipeline.Group.id a)
-        (R.Pipeline.Group.id b)
+      String.compare (R.Pipeline.Group.id a) (R.Pipeline.Group.id b)
   end)
 
   module SourceMap = Map.Make (struct
     type t = R.Pipeline.Source.t
 
     let compare a b =
-      String.compare
-        (R.Pipeline.Source.id a)
-        (R.Pipeline.Source.id b)
+      String.compare (R.Pipeline.Source.id a) (R.Pipeline.Source.id b)
   end)
 
   type pipeline_state =
@@ -210,11 +207,12 @@ module Make (R : Renderer) = struct
               if String.equal (fn current_key) (fn new_key) then
                 ((current_key, new_value :: current_values), acc)
               else
-                ((new_key, [ new_value ]), (current_key, current_values) :: acc))
+                ( (new_key, [ new_value ]),
+                  (current_key, List.rev current_values) :: acc ))
             ((k0, [ v0 ]), [])
             rest
         in
-        last :: acc
+        List.rev (last :: acc)
 
   let make () : t =
     let db = Lazy.force Db.db in
@@ -343,6 +341,7 @@ module Make (R : Renderer) = struct
     in
     [ div [ R.render_index () ]; h2 [ txt "Pipelines" ] ]
     @ (SourceMap.bindings !state
+      |> List.sort (fun (a, _) (b, _) -> R.Pipeline.Source.compare a b)
       |> List.map (fun (source, pipelines) ->
              (R.Pipeline.Source.group source, (source, pipelines)))
       |> group_by_key R.Pipeline.Group.id
