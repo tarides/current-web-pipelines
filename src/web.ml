@@ -201,7 +201,7 @@ module Make (R : Renderer) = struct
     |> function
     | [] -> []
     | (k0, v0) :: rest ->
-        let last, acc =
+        let (last_key, last_value), acc =
           List.fold_left
             (fun ((current_key, current_values), acc) (new_key, new_value) ->
               if String.equal (fn current_key) (fn new_key) then
@@ -212,7 +212,7 @@ module Make (R : Renderer) = struct
             ((k0, [ v0 ]), [])
             rest
         in
-        List.rev (last :: acc)
+        List.rev ((last_key, List.rev last_value) :: acc)
 
   let make () : t =
     let db = Lazy.force Db.db in
