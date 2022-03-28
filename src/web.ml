@@ -152,8 +152,8 @@ module Make (R : Renderer) = struct
 
     let compare a b =
       String.compare
-        (R.Pipeline.Group.to_string a)
-        (R.Pipeline.Group.to_string b)
+        (R.Pipeline.Group.id a)
+        (R.Pipeline.Group.id b)
   end)
 
   module SourceMap = Map.Make (struct
@@ -161,8 +161,8 @@ module Make (R : Renderer) = struct
 
     let compare a b =
       String.compare
-        (R.Pipeline.Source.to_string a)
-        (R.Pipeline.Source.to_string b)
+        (R.Pipeline.Source.id a)
+        (R.Pipeline.Source.id b)
   end)
 
   type pipeline_state =
@@ -232,7 +232,7 @@ module Make (R : Renderer) = struct
                  "[warning] failed to unmarshal. The entry should be removed.\n";
                Db.remove_pipeline db t.pipeline_source t.pipeline_id;
                None)
-      |> group_by_key R.Pipeline.Source.to_string
+      |> group_by_key R.Pipeline.Source.id
       |> List.map (fun (k, pipelines) ->
              (k, List.to_seq pipelines |> StringMap.of_seq))
       |> List.to_seq |> SourceMap.of_seq
@@ -274,7 +274,7 @@ module Make (R : Renderer) = struct
       let db = Lazy.force Db.db in
       Db.update_pipeline db
         {
-          pipeline_source = R.Pipeline.Source.to_string pipeline_source;
+          pipeline_source = R.Pipeline.Source.id pipeline_source;
           pipeline_id;
           pipeline_content = marshal new_state;
           creation_date = Int64.of_float creation_date;
@@ -345,7 +345,7 @@ module Make (R : Renderer) = struct
     @ (SourceMap.bindings !state
       |> List.map (fun (source, pipelines) ->
              (R.Pipeline.Source.group source, (source, pipelines)))
-      |> group_by_key R.Pipeline.Group.to_string
+      |> group_by_key R.Pipeline.Group.id
       |> List.map (fun (group, sources) ->
              div
                [
