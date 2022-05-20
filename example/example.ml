@@ -157,6 +157,7 @@ module Website_render = struct
         | Branch str -> Fmt.str "%s-branch-%s" (Group.id group) str
 
       let group t = t.group
+      let compare a b = String.compare (id a) (id b)
     end
 
     let id (t : t) = t.run
@@ -246,7 +247,7 @@ let main config mode =
   in
 
   let site =
-    let routes = Current_web.routes engine @ Website.routes website in
+    let routes = Current_web.routes engine @ Website.routes website engine in
     Current_web.Site.(v ~has_role:Current_web.Site.allow_all)
       ~name:"current-web-pipelines-example" routes
   in
@@ -262,7 +263,10 @@ open Cmdliner
 
 let cmd =
   let doc = "an OCurrent pipeline" in
-  ( Term.(const main $ Current.Config.cmdliner $ Current_web.cmdliner),
-    Term.info "current-web-pipelines-example" ~doc )
+  let term =
+    Term.(const main $ Current.Config.cmdliner $ Current_web.cmdliner)
+  in
+  let info = Cmd.info "current-web-pipelines-example" ~doc in
+  Cmd.v info (Term.term_result term)
 
-let () = Term.(exit @@ eval cmd)
+let () = exit @@ Cmd.eval cmd

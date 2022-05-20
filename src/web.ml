@@ -364,7 +364,7 @@ module Make (R : Renderer) = struct
     in
     (src, StringMap.find pipeline_id pipelines)
 
-  let show_pipeline ~(state : t) pipeline_source_id pipeline_id =
+  let show_pipeline ctx ~(state : t) pipeline_source_id pipeline_id =
     let src, pipeline = find_pipeline ~state pipeline_source_id pipeline_id in
     let { user_meta; creation_date; _ } = pipeline.metadata in
     let date = Unix.gmtime creation_date in
@@ -372,7 +372,28 @@ module Make (R : Renderer) = struct
       Fmt.str "%02d/%02d/%4d %02d:%02d" date.tm_mday (1 + date.tm_mon)
         (1900 + date.tm_year) date.tm_hour date.tm_min
     in
+    let rebuildable_job_ids =
+      Jobs.rebuildable_jobs node_map_status pipeline.stages
+    in
+    let csrf = Current_web.Context.csrf ctx in
     let open Tyxml_html in
+    let rebuild_button =
+      if List.length rebuildable_job_ids == 0 then []
+      else
+        [
+          form
+            ~a:[ a_action (Fmt.str "%s" pipeline_id); a_method `Post ]
+            (input ~a:[ a_input_type `Submit; a_value "Rebuild" ] ()
+            :: input ~a:[ a_name "csrf"; a_input_type `Hidden; a_value csrf ] ()
+            :: input
+                 ~a:[ a_name "action"; a_input_type `Hidden; a_value "rebuild" ]
+                 ()
+            :: List.map
+                 (fun id ->
+                   input ~a:[ a_name "id"; a_input_type `Hidden; a_value id ] ())
+                 rebuildable_job_ids);
+        ]
+    in
     [
       br ();
       a ~a:[ a_href ".." ] [ txt "Back" ];
@@ -389,6 +410,7 @@ module Make (R : Renderer) = struct
       br ();
       R.Pipeline.render user_meta;
       h2 [ txt "Stages:" ];
+      div rebuild_button;
       ul
         (List.map
            (fun (stage : _ State.stage) ->
@@ -440,6 +462,82 @@ module Make (R : Renderer) = struct
                    i [ Run_time.to_elem run_time ];
                  ]));
     ]
+
+  let modify_pipeline ~ctx ~state ~engine body pipeline_source_id pipeline_id =
+    let data = Uri.query_of_encoded body in
+    let pick label (x, y) = if x = label then Some y else None in
+    let actions = List.filter_map (pick "action") data |> List.concat in
+    if actions != [ "rebuild" ] then []
+    else
+      let open Tyxml_html in
+      match List.filter_map (pick "id") data |> List.concat with
+      | jobs ->
+          if List.length jobs == 0 then []
+          else
+            let failed = ref [] in
+            let rebuilding = ref [] in
+            jobs
+            |> List.iter (fun job_id ->
+                   let state = Current.Engine.state engine in
+                   let jobs = state.Current.Engine.jobs in
+                   match Current.Job.Map.find_opt job_id jobs with
+                   | None -> failed := job_id :: !failed
+                   | Some actions -> (
+                       match actions#rebuild with
+                       | None -> failed := job_id :: !failed
+                       | Some rebuild ->
+                           let _new_id : string = rebuild () in
+                           rebuilding := job_id :: !rebuilding;
+                           ()));
+            let fail_msg =
+              match !failed with
+              | [] -> div []
+              | failed ->
+                  div
+                    [
+                      span
+                        [
+                          txt
+                          @@ Fmt.str
+                               "%d/%d jobs could not be restarted (because \
+                                they are no longer active): %a"
+                               (List.length failed) (List.length jobs)
+                               Fmt.(list ~sep:(any ", ") string)
+                               failed;
+                        ];
+                    ]
+            in
+            let success_msg =
+              match !rebuilding with
+              | [] -> div []
+              | rebuilding ->
+                  div
+                    [
+                      span
+                        [
+                          txt
+                          @@ Fmt.str "%d/%d jobs were restarted: %a"
+                               (List.length rebuilding) (List.length jobs)
+                               Fmt.(list ~sep:(any ", ") string)
+                               rebuilding;
+                        ];
+                    ]
+            in
+            let pipeline_url =
+              Fmt.str "/pipelines/%s/%s" pipeline_source_id pipeline_id
+            in
+            let return_link =
+              a ~a:[ a_href pipeline_url ] [ txt @@ "Reload pipeline" ]
+            in
+            let body =
+              [
+                show_pipeline ctx ~state pipeline_source_id pipeline_id;
+                [ fail_msg ];
+                [ success_msg ];
+                [ return_link ];
+              ]
+            in
+            List.flatten body
 
   (* JOB TREE *)
 
@@ -535,14 +633,14 @@ module Make (R : Renderer) = struct
     let len = min max_log_chunk_size len in
     really_input_string ch (Int64.to_int len) ^ truncated
 
-  let show_pipeline_task_job ~(state : t) ipeline_source_id pipeline_id stage_id
-      wildcard =
+  let show_pipeline_task_job ~(state : t) pipeline_source_id pipeline_id
+      stage_id wildcard =
     let job_id =
       let wld = Routes.Parts.wildcard_match wildcard in
       String.sub wld 1 (String.length wld - 1)
     in
     let pipeline_tasks =
-      show_pipeline_task ~state ipeline_source_id pipeline_id stage_id
+      show_pipeline_task ~state pipeline_source_id pipeline_id stage_id
     in
     let open Tyxml_html in
     [
@@ -573,16 +671,19 @@ module Make (R : Renderer) = struct
       (R.Pipeline.id data) (R.Stage.id stage)
 
   (* ROUTING *)
-  let internal_routes ~state =
+  let internal_get_routes ctx ~state =
     Routes.
       [
         empty @--> list_pipelines ~state;
-        (str / str /? nil) @--> show_pipeline ~state;
+        (str / str /? nil) @--> show_pipeline ctx ~state;
         (str / str / str /? nil) @--> show_pipeline_task ~state;
         (str / str / str /? wildcard) @--> show_pipeline_task_job ~state;
       ]
 
-  let handle state wildcard_path =
+  let internal_post_routes ctx ~state ~engine body =
+    Routes.[ (str / str /? nil) @--> modify_pipeline ~ctx ~state ~engine body ]
+
+  let handle state ~engine wildcard_path =
     object
       inherit Current_web.Resource.t
       method! nav_link = Some "Pipelines"
@@ -590,18 +691,29 @@ module Make (R : Renderer) = struct
       method! private get context =
         let target = Routes.Parts.wildcard_match wildcard_path in
         let response =
-          Routes.one_of (internal_routes ~state)
+          Routes.one_of (internal_get_routes context ~state)
           |> Routes.match' ~target
           |> Option.value ~default:[ Tyxml_html.txt "not found" ]
         in
         Current_web.Context.respond_ok context response
+
+      method! private post context body =
+        let target = Routes.Parts.wildcard_match wildcard_path in
+        let response =
+          Routes.one_of (internal_post_routes context ~state ~engine body)
+          |> Routes.match' ~target
+          |> Option.value ~default:[ Tyxml_html.txt "not found" ]
+        in
+        if List.length response == 0 then
+          Current_web.Context.respond_error context `Bad_request ""
+        else Current_web.Context.respond_ok context response
     end
 
-  let routes t =
+  let routes t engine =
     Routes.
       [
-        (s "pipelines" /? nil) @--> handle t (Parts.of_parts "");
-        (s "pipelines" /? wildcard) @--> handle t
+        (s "pipelines" /? nil) @--> handle t (Parts.of_parts "") ~engine;
+        (s "pipelines" /? wildcard) @--> handle t ~engine
         (* TODO: (s "artifacts" /? wildcard) @--> handle_artifacts;*);
       ]
     @ R.extra_routes
