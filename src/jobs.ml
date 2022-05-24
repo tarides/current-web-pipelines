@@ -1,6 +1,6 @@
-let job_tree_to_job_ids (job_tree : _ State.job_tree) =
-  let rec loop job_tree_list (jt : _ State.job_tree) =
-    match jt.node with
+let job_tree_to_job_ids job_tree =
+  let rec loop job_tree_list jt =
+    match jt.State.node with
     | State.Item
         {
           metadata = Some { Current.Metadata.job_id = Some job_id; _ };
@@ -8,7 +8,7 @@ let job_tree_to_job_ids (job_tree : _ State.job_tree) =
         } ->
         List.append [ Some job_id ] job_tree_list
     | State.Item _r -> List.append [ None ] job_tree_list
-    | State.Group nodes -> List.concat @@ List.map (loop job_tree_list) nodes
+    | State.Group nodes -> List.concat_map (loop job_tree_list) nodes
   in
   let some_job_ids = loop [] job_tree in
   List.fold_left
@@ -20,14 +20,13 @@ let failed = function
   | Error `Blocked | Error (`Skipped _) | Error `Skipped_failure -> false
   | Error `Cancelled | Error (`Msg _) -> true
 
-let rebuildable_jobs node_map_status stages =
+let rebuildable_jobs ~node_map_status stages =
   let failing_stages =
     List.filter
       (fun stage -> failed @@ State.stage_status ~node_map_status stage)
       stages
   in
   let job_trees_of_failing_stages =
-    List.concat
-    @@ List.map (fun (stage : _ State.stage) -> stage.jobs) failing_stages
+    List.concat_map (fun stage -> stage.State.jobs) failing_stages
   in
-  List.concat @@ List.map job_tree_to_job_ids job_trees_of_failing_stages
+  List.concat_map job_tree_to_job_ids job_trees_of_failing_stages

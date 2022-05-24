@@ -373,26 +373,34 @@ module Make (R : Renderer) = struct
         (1900 + date.tm_year) date.tm_hour date.tm_min
     in
     let rebuildable_job_ids =
-      Jobs.rebuildable_jobs node_map_status pipeline.stages
+      Jobs.rebuildable_jobs ~node_map_status pipeline.stages
     in
     let csrf = Current_web.Context.csrf ctx in
     let open Tyxml_html in
     let rebuild_button =
-      if List.length rebuildable_job_ids == 0 then []
-      else
-        [
-          form
-            ~a:[ a_action (Fmt.str "%s" pipeline_id); a_method `Post ]
-            (input ~a:[ a_input_type `Submit; a_value "Rebuild" ] ()
-            :: input ~a:[ a_name "csrf"; a_input_type `Hidden; a_value csrf ] ()
-            :: input
-                 ~a:[ a_name "action"; a_input_type `Hidden; a_value "rebuild" ]
-                 ()
-            :: List.map
-                 (fun id ->
-                   input ~a:[ a_name "id"; a_input_type `Hidden; a_value id ] ())
-                 rebuildable_job_ids);
-        ]
+      match rebuildable_job_ids with
+      | [] -> []
+      | _ ->
+          [
+            form
+              ~a:[ a_action (Fmt.str "%s" pipeline_id); a_method `Post ]
+              (input ~a:[ a_input_type `Submit; a_value "Rebuild" ] ()
+              :: input
+                   ~a:[ a_name "csrf"; a_input_type `Hidden; a_value csrf ]
+                   ()
+              :: input
+                   ~a:
+                     [
+                       a_name "action"; a_input_type `Hidden; a_value "rebuild";
+                     ]
+                   ()
+              :: List.map
+                   (fun id ->
+                     input
+                       ~a:[ a_name "id"; a_input_type `Hidden; a_value id ]
+                       ())
+                   rebuildable_job_ids);
+          ]
     in
     [
       br ();
@@ -467,77 +475,76 @@ module Make (R : Renderer) = struct
     let data = Uri.query_of_encoded body in
     let pick label (x, y) = if x = label then Some y else None in
     let actions = List.filter_map (pick "action") data |> List.concat in
-    if actions != [ "rebuild" ] then []
+    if actions <> [ "rebuild" ] then []
     else
       let open Tyxml_html in
       match List.filter_map (pick "id") data |> List.concat with
+      | [] -> []
       | jobs ->
-          if List.length jobs == 0 then []
-          else
-            let failed = ref [] in
-            let rebuilding = ref [] in
-            jobs
-            |> List.iter (fun job_id ->
-                   let state = Current.Engine.state engine in
-                   let jobs = state.Current.Engine.jobs in
-                   match Current.Job.Map.find_opt job_id jobs with
-                   | None -> failed := job_id :: !failed
-                   | Some actions -> (
-                       match actions#rebuild with
-                       | None -> failed := job_id :: !failed
-                       | Some rebuild ->
-                           let _new_id : string = rebuild () in
-                           rebuilding := job_id :: !rebuilding;
-                           ()));
-            let fail_msg =
-              match !failed with
-              | [] -> div []
-              | failed ->
-                  div
-                    [
-                      span
-                        [
-                          txt
-                          @@ Fmt.str
-                               "%d/%d jobs could not be restarted (because \
-                                they are no longer active): %a"
-                               (List.length failed) (List.length jobs)
-                               Fmt.(list ~sep:(any ", ") string)
-                               failed;
-                        ];
-                    ]
-            in
-            let success_msg =
-              match !rebuilding with
-              | [] -> div []
-              | rebuilding ->
-                  div
-                    [
-                      span
-                        [
-                          txt
-                          @@ Fmt.str "%d/%d jobs were restarted: %a"
-                               (List.length rebuilding) (List.length jobs)
-                               Fmt.(list ~sep:(any ", ") string)
-                               rebuilding;
-                        ];
-                    ]
-            in
-            let pipeline_url =
-              Fmt.str "/pipelines/%s/%s" pipeline_source_id pipeline_id
-            in
-            let return_link =
-              a ~a:[ a_href pipeline_url ] [ txt @@ "Reload pipeline" ]
-            in
-            let body =
-              [
-                show_pipeline ctx ~state pipeline_source_id pipeline_id;
-                [ fail_msg ];
-                [ success_msg ];
-                [ return_link ];
-              ]
-            in
-            List.flatten body
+          let failed = ref [] in
+          let rebuilding = ref [] in
+          jobs
+          |> List.iter (fun job_id ->
+                 let state = Current.Engine.state engine in
+                 let jobs = state.Current.Engine.jobs in
+                 match Current.Job.Map.find_opt job_id jobs with
+                 | None -> failed := job_id :: !failed
+                 | Some actions -> (
+                     match actions#rebuild with
+                     | None -> failed := job_id :: !failed
+                     | Some rebuild ->
+                         let (_ : string) = rebuild () in
+                         rebuilding := job_id :: !rebuilding;
+                         ()));
+          let fail_msg =
+            match !failed with
+            | [] -> div []
+            | failed ->
+                div
+                  [
+                    span
+                      [
+                        txt
+                        @@ Fmt.str
+                             "%d/%d jobs could not be restarted (because they \
+                              are no longer active): %a"
+                             (List.length failed) (List.length jobs)
+                             Fmt.(list ~sep:(any ", ") string)
+                             failed;
+                      ];
+                  ]
+          in
+          let success_msg =
+            match !rebuilding with
+            | [] -> div []
+            | rebuilding ->
+                div
+                  [
+                    span
+                      [
+                        txt
+                        @@ Fmt.str "%d/%d jobs were restarted: %a"
+                             (List.length rebuilding) (List.length jobs)
+                             Fmt.(list ~sep:(any ", ") string)
+                             rebuilding;
+                      ];
+                  ]
+          in
+          let pipeline_url =
+            Fmt.str "/pipelines/%s/%s" pipeline_source_id pipeline_id
+          in
+          let return_link =
+            a ~a:[ a_href pipeline_url ] [ txt @@ "Reload pipeline" ]
+          in
+          let body =
+            [
+              show_pipeline ctx ~state pipeline_source_id pipeline_id;
+              [ fail_msg ];
+              [ success_msg ];
+              [ return_link ];
+            ]
+          in
+          List.flatten body
 
   (* JOB TREE *)
 
@@ -704,9 +711,9 @@ module Make (R : Renderer) = struct
           |> Routes.match' ~target
           |> Option.value ~default:[ Tyxml_html.txt "not found" ]
         in
-        if List.length response == 0 then
-          Current_web.Context.respond_error context `Bad_request ""
-        else Current_web.Context.respond_ok context response
+        match response with
+        | [] -> Current_web.Context.respond_error context `Bad_request ""
+        | _ -> Current_web.Context.respond_ok context response
     end
 
   let routes t engine =
