@@ -2,18 +2,12 @@ let job_tree_to_job_ids job_tree =
   let rec loop job_tree_list jt =
     match jt.State.node with
     | State.Item
-        {
-          metadata = Some { Current.Metadata.job_id = Some job_id; _ };
-          result = _;
-        } ->
-        List.append [ Some job_id ] job_tree_list
-    | State.Item _r -> List.append [ None ] job_tree_list
+        { metadata = Some { Current.Metadata.job_id = Some job_id; _ }; _ } ->
+        job_id :: job_tree_list
+    | State.Item _ -> job_tree_list
     | State.Group nodes -> List.concat_map (loop job_tree_list) nodes
   in
-  let some_job_ids = loop [] job_tree in
-  List.fold_left
-    (fun acc sx -> match sx with None -> acc | Some x -> x :: acc)
-    [] some_job_ids
+  loop [] job_tree
 
 let failed = function
   | Ok _ | Error (`Active `Ready) | Error (`Active `Running) -> false
