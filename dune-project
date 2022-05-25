@@ -5,7 +5,7 @@
 (generate_opam_files true)
 
 (source
- (github TheLortex/current-web-pipelines))
+ (github tarides/current-web-pipelines))
 
 (authors "lucas@tarides.com")
 
@@ -17,7 +17,7 @@
  (description "")
  (depends
   (ocaml
-   (>= 4.09))
+   (>= 4.10))
   (current
    (>= 0.5))
   (current_web

@@ -4,11 +4,11 @@ synopsis: "Simplify the creation of pipeline websites"
 description: ""
 maintainer: ["lucas@tarides.com"]
 authors: ["lucas@tarides.com"]
-homepage: "https://github.com/TheLortex/current-web-pipelines"
-bug-reports: "https://github.com/TheLortex/current-web-pipelines/issues"
+homepage: "https://github.com/tarides/current-web-pipelines"
+bug-reports: "https://github.com/tarides/current-web-pipelines/issues"
 depends: [
   "dune" {>= "2.8"}
-  "ocaml" {>= "4.09"}
+  "ocaml" {>= "4.10"}
   "current" {>= "0.5"}
   "current_web" {>= "0.5"}
   "current_git" {>= "0.5"}
@@ -30,4 +30,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/TheLortex/current-web-pipelines.git"
+dev-repo: "git+https://github.com/tarides/current-web-pipelines.git"
