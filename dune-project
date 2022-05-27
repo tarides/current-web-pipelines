@@ -25,4 +25,5 @@
   (current_git
    (>= 0.5))
   fmt
-  routes))
+  routes
+  (alcotest :with-test)))
