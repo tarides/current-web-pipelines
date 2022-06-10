@@ -162,6 +162,13 @@ module Make (R : Renderer) = struct
       String.compare (R.Pipeline.Source.id a) (R.Pipeline.Source.id b)
   end)
 
+  module SourceSet = Set.Make (struct
+    type t = R.Pipeline.Source.t
+
+    let compare a b =
+      String.compare (R.Pipeline.Source.id a) (R.Pipeline.Source.id b)
+  end)
+
   type pipeline_state =
     (R.Output.t, R.Node.t, R.Stage.t, R.Pipeline.t) State.pipeline
 
@@ -178,7 +185,10 @@ module Make (R : Renderer) = struct
       pipeline_metadata )
     State.pipeline
 
-  type t = pipeline_state_internal StringMap.t SourceMap.t ref
+  type t = {
+    mutable runs : pipeline_state_internal StringMap.t SourceMap.t;
+    mutable active : SourceSet.t;
+  }
 
   let unmarshal =
     State.unmarshal R.Output.unmarshal R.Node.unmarshal R.Stage.unmarshal
@@ -235,25 +245,25 @@ module Make (R : Renderer) = struct
              (k, List.to_seq pipelines |> StringMap.of_seq))
       |> List.to_seq |> SourceMap.of_seq
     in
-    ref init_state
+    { runs = init_state; active = SourceSet.empty }
 
   let get ~pipeline_source ~pipeline_id (state : t) =
-    match SourceMap.find_opt pipeline_source !state with
+    match SourceMap.find_opt pipeline_source state.runs with
     | None -> None
     | Some v -> StringMap.find_opt pipeline_id v
 
   let set ~pipeline_source ~pipeline_id (state : t) new_state =
-    match SourceMap.find_opt pipeline_source !state with
+    match SourceMap.find_opt pipeline_source state.runs with
     | None ->
-        state :=
+        state.runs <-
           SourceMap.add pipeline_source
             (StringMap.singleton pipeline_id new_state)
-            !state
+            state.runs
     | Some v ->
-        state :=
+        state.runs <-
           SourceMap.add pipeline_source
             ((StringMap.add pipeline_id new_state) v)
-            !state
+            state.runs
 
   let update_state (state : t) (new_state : pipeline_state Current.t) =
     let open Current.Syntax in
@@ -286,6 +296,13 @@ module Make (R : Renderer) = struct
       { v with metadata = { user_meta; run_time; creation_date } }
     in
     set ~pipeline_source ~pipeline_id state new_state
+
+  let set_active_sources (state : t)
+      (active_sources : R.Pipeline.Source.t list Current.t) =
+    let open Current.Syntax in
+    let+ active_sources = active_sources in
+    state.active <- SourceSet.of_list active_sources
+
   (* RENDERING *)
 
   let emoji_of_status =
@@ -311,8 +328,18 @@ module Make (R : Renderer) = struct
 
   let node_map_status (node_meta, _) = R.Node.map_status node_meta
 
-  let list_pipelines ~(state : t) =
+  let list_pipelines ctx ~(state : t) =
     let open Tyxml_html in
+    let list_all_query_param =
+      (* this query parameter controls if we list all the pipeline sources for a given group *)
+      let uri = Current_web.Context.request ctx |> Cohttp.Request.uri in
+      Uri.get_query_param uri "list_all"
+    in
+    let list_all =
+      match list_all_query_param with
+      | None -> fun _ -> false
+      | Some v -> fun group_id -> R.Pipeline.Group.id group_id = v
+    in
     let show_pipeline (pipeline : pipeline_state_internal) =
       let { user_meta; run_time; _ } = pipeline.metadata in
       let id = R.Pipeline.id user_meta in
@@ -340,25 +367,61 @@ module Make (R : Renderer) = struct
       show_pipeline latest
     in
     [ div [ R.render_index () ]; h2 [ txt "Pipelines" ] ]
-    @ (SourceMap.bindings !state
+    @ (SourceMap.bindings state.runs
       |> List.sort (fun (a, _) (b, _) -> R.Pipeline.Source.compare a b)
       |> List.map (fun (source, pipelines) ->
              (R.Pipeline.Source.group source, (source, pipelines)))
       |> group_by_key R.Pipeline.Group.id
       |> List.map (fun (group, sources) ->
-             div
-               [
-                 h3 [ txt (R.Pipeline.Group.to_string group) ];
-                 ul
-                   (List.map
-                      (fun (_, pipelines) -> li (render_source pipelines))
-                      sources);
-               ]))
+             if list_all group then
+               div
+                 [
+                   h3 [ txt (R.Pipeline.Group.to_string group) ];
+                   h4 [ i [ txt "active pipelines" ] ];
+                   ul
+                     (sources
+                     |> List.filter (fun (source, _) ->
+                            SourceSet.mem source state.active)
+                     |> List.map (fun (_, pipelines) ->
+                            li (render_source pipelines)));
+                   h4 [ i [ a ~a:[ a_href "?" ] [ txt "inactive pipelines" ] ] ];
+                   ul
+                     (sources
+                     |> List.filter (fun (source, _) ->
+                            not (SourceSet.mem source state.active))
+                     |> List.map (fun (_, pipelines) ->
+                            li (render_source pipelines)));
+                 ]
+             else
+               div
+                 [
+                   h3 [ txt (R.Pipeline.Group.to_string group) ];
+                   h4 [ i [ txt "active pipelines" ] ];
+                   ul
+                     (sources
+                     |> List.filter (fun (source, _) ->
+                            SourceSet.mem source state.active)
+                     |> List.map (fun (_, pipelines) ->
+                            li (render_source pipelines)));
+                   h4
+                     [
+                       i
+                         [
+                           a
+                             ~a:
+                               [
+                                 a_href
+                                   ("?list_all=" ^ R.Pipeline.Group.id group);
+                               ]
+                             [ txt "show inactive pipelines" ];
+                         ];
+                     ];
+                 ]))
 
   (* SHOW PIPELINES *)
   let find_pipeline ~(state : t) pipeline_source_id pipeline_id =
     let src, pipelines =
-      SourceMap.bindings !state
+      SourceMap.bindings state.runs
       |> List.find (fun (source, _) ->
              R.Pipeline.Source.id source = pipeline_source_id)
     in
@@ -440,7 +503,8 @@ module Make (R : Renderer) = struct
       br ();
       h2 [ txt "History:" ];
       ul
-        (SourceMap.find src !state |> StringMap.bindings |> List.rev_map snd
+        (SourceMap.find src state.runs
+        |> StringMap.bindings |> List.rev_map snd
         |> List.sort
              (fun
                ({ metadata = { creation_date = a; _ }; _ } :
@@ -681,7 +745,7 @@ module Make (R : Renderer) = struct
   let internal_get_routes ctx ~state =
     Routes.
       [
-        empty @--> list_pipelines ~state;
+        empty @--> list_pipelines ctx ~state;
         (str / str /? nil) @--> show_pipeline ctx ~state;
         (str / str / str /? nil) @--> show_pipeline_task ~state;
         (str / str / str /? wildcard) @--> show_pipeline_task_job ~state;

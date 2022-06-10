@@ -71,6 +71,10 @@ module Make (R : Renderer) : sig
 
   val make : unit -> t
   val update_state : t -> pipeline_state Current.t -> unit Current.t
+
+  val set_active_sources :
+    t -> R.Pipeline.Source.t list Current.t -> unit Current.t
+
   val routes : t -> Current.Engine.t -> Current_web.Resource.t Routes.route list
   val pipeline_page_url : R.Pipeline.t -> string
   val pipeline_stage_url : R.Pipeline.t -> R.Stage.t -> string
