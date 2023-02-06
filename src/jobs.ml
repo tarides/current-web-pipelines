@@ -10,7 +10,11 @@ let job_tree_to_job_ids job_tree =
   loop [] job_tree
 
 let failed = function
-  | Ok _ | Error (`Active `Ready) | Error (`Active `Running) -> false
+  | Ok _
+  | Error (`Active `Ready)
+  | Error (`Active `Waiting_for_confirmation)
+  | Error (`Active `Running) ->
+      false
   | Error `Blocked | Error (`Skipped _) | Error `Skipped_failure -> false
   | Error `Cancelled | Error (`Msg _) -> true
 

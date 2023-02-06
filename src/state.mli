@@ -4,7 +4,7 @@ This module contains a generic layered state that can be rendered using the Web 
 
 type 'output job_result =
   ( 'output,
-    [ `Active of [ `Running | `Ready ]
+    [ `Active of Current_term.Output.active
     | `Msg of string
     | `Cancelled
     | `Blocked
