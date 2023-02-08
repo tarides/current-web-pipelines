@@ -25,5 +25,5 @@
   (current_git
    (>= 0.5))
   fmt
-  routes
-   (>= 2.0)))
+  (routes
+   (>= 2.0))))
