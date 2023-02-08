@@ -31,3 +31,6 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/tarides/current-web-pipelines.git"
+pin-depends: [
+  [ "current" "https://github.com/ocurrent/ocurrent" ]
+]
