@@ -2,7 +2,7 @@
 
 (name current-web-pipelines)
 
-(generate_opam_files true)
+(generate_opam_files false)
 
 (source
  (github tarides/current-web-pipelines))
@@ -25,4 +25,5 @@
   (current_git
    (>= 0.5))
   fmt
-  routes))
+  (routes
+   (>= 2.0))))

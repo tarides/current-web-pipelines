@@ -9,11 +9,11 @@ bug-reports: "https://github.com/tarides/current-web-pipelines/issues"
 depends: [
   "dune" {>= "2.8"}
   "ocaml" {>= "4.10"}
-  "current" {>= "0.5"}
-  "current_web" {>= "0.5"}
-  "current_git" {>= "0.5"}
+  "current"
+  "current_web"
+  "current_git"
   "fmt"
-  "routes"
+  "routes" {>= "2.0.0"}
   "odoc" {with-doc}
 ]
 build: [
@@ -31,3 +31,8 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/tarides/current-web-pipelines.git"
+pin-depends: [
+  ["current.dev" "git+https://github.com/ocurrent/ocurrent.git#5661fe2848c586efa3c7d82c39fa0d0a7a5e5c53"]
+  ["current_web.dev" "git+https://github.com/ocurrent/ocurrent.git#5661fe2848c586efa3c7d82c39fa0d0a7a5e5c53"]
+  ["current_git.dev" "git+https://github.com/ocurrent/ocurrent.git#5661fe2848c586efa3c7d82c39fa0d0a7a5e5c53"]
+]
