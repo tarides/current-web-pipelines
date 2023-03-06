@@ -1,6 +1,6 @@
 type 'output job_result =
   ( 'output,
-    [ `Active of [ `Running | `Ready ]
+    [ `Active of Current_term.Output.active
     | `Msg of string
     | `Cancelled
     | `Blocked
@@ -8,12 +8,15 @@ type 'output job_result =
     | `Skipped of string ] )
   result
 
+(** Support a total ordering over results, to allow us to specify the aggregated
+    result of a set of results as the maximum of the set *)
 let to_int : _ job_result -> int = function
   | Error (`Skipped _) -> 0
   | Error `Skipped_failure -> 0
   | Ok _ -> 1
   | Error `Blocked -> 2
   | Error (`Active `Ready) -> 3
+  | Error (`Active `Waiting_for_confirmation) -> 3
   | Error (`Active `Running) -> 4
   | Error `Cancelled -> 5
   | Error (`Msg _) -> 6
@@ -104,6 +107,8 @@ module Marshalling = struct
     | `Skipped_failure -> `Assoc [ ("type", `String "skipped-failure") ]
     | `Blocked -> `Assoc [ ("type", `String "blocked") ]
     | `Active `Ready -> `Assoc [ ("type", `String "active-ready") ]
+    | `Active `Waiting_for_confirmation ->
+        `Assoc [ ("type", `String "active-waiting-for-confirmation") ]
     | `Active `Running -> `Assoc [ ("type", `String "active-running") ]
     | `Cancelled -> `Assoc [ ("type", `String "cancelled") ]
     | `Msg msg -> `Assoc [ ("type", `String "msg"); ("msg", `String msg) ]
@@ -116,6 +121,7 @@ module Marshalling = struct
     | "skipped-failure" -> `Skipped_failure
     | "blocked" -> `Blocked
     | "active-ready" -> `Active `Ready
+    | "active-waiting-for-confirmation" -> `Active `Running
     | "active-running" -> `Active `Running
     | "cancelled" -> `Cancelled
     | _ -> raise (Type_error ("type", json))
@@ -141,7 +147,9 @@ module Marshalling = struct
         ( "update",
           option
             (function
-              | `Ready -> `String "ready" | `Running -> `String "running")
+              | `Ready -> `String "ready"
+              | `Running -> `String "running"
+              | `Waiting_for_confirmation -> `String "waiting for confirmation")
             update );
       ]
 

@@ -19,10 +19,12 @@
   (ocaml
    (>= 4.10))
   (current
-   (>= 0.5))
+   (>= 0.6.4))
   (current_web
-   (>= 0.5))
+   (>= 0.6.4))
   (current_git
-   (>= 0.5))
-  fmt
-  routes))
+   (>= 0.6.4))
+  (fmt (>= 0.8.9))
+  (duration (>= 0.2.0))
+  (routes
+   (>= 2.0.0))))

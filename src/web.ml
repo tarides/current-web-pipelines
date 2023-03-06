@@ -293,6 +293,8 @@ module Make (R : Renderer) = struct
     function
     | Ok _ -> span ~a:[ a_title "OK" ] [ txt "✔️ " ]
     | Error (`Active `Ready) -> span ~a:[ a_title "Ready" ] [ txt "🟡 " ]
+    | Error (`Active `Waiting_for_confirmation) ->
+        span ~a:[ a_title "Waiting for confirmation" ] [ txt "🟡 " ]
     | Error (`Active `Running) -> span ~a:[ a_title "Running" ] [ txt "🟠 " ]
     | Error `Blocked -> span ~a:[ a_title "Blocked" ] [ txt "🔘 " ]
     | Error `Cancelled -> span ~a:[ a_title "Cancelled" ] [ txt "🛑 " ]
@@ -681,7 +683,7 @@ module Make (R : Renderer) = struct
   let internal_get_routes ctx ~state =
     Routes.
       [
-        empty @--> list_pipelines ~state;
+        nil @--> list_pipelines ~state;
         (str / str /? nil) @--> show_pipeline ctx ~state;
         (str / str / str /? nil) @--> show_pipeline_task ~state;
         (str / str / str /? wildcard) @--> show_pipeline_task_job ~state;
@@ -698,18 +700,24 @@ module Make (R : Renderer) = struct
       method! private get context =
         let target = Routes.Parts.wildcard_match wildcard_path in
         let response =
-          Routes.one_of (internal_get_routes context ~state)
-          |> Routes.match' ~target
-          |> Option.value ~default:[ Tyxml_html.txt "not found" ]
+          let router = Routes.one_of (internal_get_routes context ~state) in
+          match Routes.match' router ~target with
+          | Routes.FullMatch v -> v
+          | Routes.MatchWithTrailingSlash v -> v
+          | Routes.NoMatch -> [ Tyxml_html.txt "not found" ]
         in
         Current_web.Context.respond_ok context response
 
       method! private post context body =
         let target = Routes.Parts.wildcard_match wildcard_path in
         let response =
-          Routes.one_of (internal_post_routes context ~state ~engine body)
-          |> Routes.match' ~target
-          |> Option.value ~default:[ Tyxml_html.txt "not found" ]
+          let router =
+            Routes.one_of (internal_post_routes context ~state ~engine body)
+          in
+          match Routes.match' router ~target with
+          | Routes.FullMatch v -> v
+          | Routes.MatchWithTrailingSlash v -> v
+          | Routes.NoMatch -> [ Tyxml_html.txt "not found" ]
         in
         match response with
         | [] -> Current_web.Context.respond_error context `Bad_request ""
