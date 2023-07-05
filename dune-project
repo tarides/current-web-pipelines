@@ -14,7 +14,8 @@
 (package
  (name current-web-pipelines)
  (synopsis "Simplify the creation of pipeline websites")
- (description "")
+ (description "Extends current_web with additional routes providing a pipeline-oriented view of ocurrent's state")
+ (license "MIT")
  (depends
   (ocaml
    (>= 4.10))
