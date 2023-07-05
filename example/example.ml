@@ -243,6 +243,18 @@ let main config mode =
               (Pipeline.v
                  ~source:{ src = Branch "main"; group = Project_B }
                  ~run:"b5233d0" ());
+            Website.set_active_sources website
+              (Current.return
+                 [
+                   {
+                     Metadata.Pipeline.Source.src = Pull_request 2;
+                     group = Project_A;
+                   };
+                   {
+                     Metadata.Pipeline.Source.src = Branch "main";
+                     group = Project_B;
+                   };
+                 ]);
           ])
   in
 
