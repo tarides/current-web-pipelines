@@ -44,5 +44,5 @@ Use `Web.Make` to create an instance of the website. The API requires to use:
 # Examples
 
 See the `example/` folder for an end-to-end usage of `current-web-pipelines`.
-It's also deployed in `mirage-ci` (https://github.com/ocurrent/mirage-ci) and
-was used in `tezos-ci` (https://github.com/tarides/tezos-ci).
+It's also deployed in [mirage-ci](https://github.com/ocurrent/mirage-ci), [ocaml-docs-ci](https://github.com/ocurrent/ocaml-docs-ci) and
+was used in [tezos-ci](https://github.com/tarides/tezos-ci).
